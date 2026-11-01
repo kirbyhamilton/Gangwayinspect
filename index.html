@@ -1,0 +1,512 @@
+<title>Gangway Inspect</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Gangway">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Barlow+Semi+Condensed:wght@600;700&display=swap">
+<style>
+/* Layout: single-column phone-first form, sticky header, big thumb-sized OK / NOT OK toggles. */
+:root{
+  --bg:#f3f5f8; --card:#ffffff; --fg:#1a2433; --muted:#5b6b80; --line:#d5dbe4;
+  --navy:#244061; --navy-fg:#ffffff; --band:#dce2ea;
+  --ok:#1f7a43; --ok-bg:#e3f3e8; --bad:#b3261e; --bad-bg:#fbe7e5; --warn:#8a5a00; --warn-bg:#fff1d6;
+  --display:"Barlow Semi Condensed","Barlow",system-ui,sans-serif; --body:"Barlow",system-ui,-apple-system,sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f151d; --card:#182130; --fg:#e8edf3; --muted:#9aa9bb; --line:#2c3848; --navy:#2f5280; --band:#22304a;
+  --ok:#5fcf8a; --ok-bg:#163424; --bad:#ff7b72; --bad-bg:#3d1d1b; --warn:#f0b64a; --warn-bg:#3b2d10; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f151d; --card:#182130; --fg:#e8edf3; --muted:#9aa9bb; --line:#2c3848; --navy:#2f5280; --band:#22304a;
+  --ok:#5fcf8a; --ok-bg:#163424; --bad:#ff7b72; --bad-bg:#3d1d1b; --warn:#f0b64a; --warn-bg:#3b2d10; color-scheme:dark }
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 var(--body);-webkit-text-size-adjust:100%}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--navy)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--navy);color:var(--navy-fg);
+  padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;gap:12px}
+.logo{flex:none;background:#fff;border-radius:8px;padding:4px 8px;display:flex;align-items:center;height:40px}
+.logo img{height:32px;width:auto;display:block}
+.top h1{font:700 20px/1.1 var(--display);margin:0;letter-spacing:.02em;text-transform:uppercase;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .sub{font-size:12px;opacity:.8;display:block;font-weight:500;text-transform:none;letter-spacing:0}
+#cloud{width:12px;height:12px;border-radius:50%;background:rgba(255,255,255,.3);flex:none}
+#cloud[data-state="ok"]{background:#5fcf8a} #cloud[data-state="offline"]{background:#f0b64a}
+.top button{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;padding:8px 12px;font:600 14px var(--body)}
+main{padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));max-width:860px;margin:0 auto}
+@media (min-width:700px){ .chk{padding:14px 18px} .tog button{min-width:84px;height:48px;font-size:15px} .field{padding:12px 18px} body{font-size:17px} }
+.view[hidden]{display:none!important}
+
+h2{font:700 15px/1.2 var(--display);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:22px 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.field{display:grid;grid-template-columns:1fr;gap:4px;padding:10px 14px;border-bottom:1px solid var(--line)}
+.field:last-child{border-bottom:0}
+.field label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.field input,.field select,.field textarea{width:100%;font:16px var(--body);color:var(--fg);background:transparent;border:0;border-bottom:1px solid var(--line);padding:6px 0;border-radius:0}
+.field input:focus,.field textarea:focus{outline:none;border-bottom-color:var(--navy)}
+.field textarea{resize:vertical;min-height:56px}
+.two{display:grid;grid-template-columns:1fr 1fr}
+.two .field:nth-child(odd){border-right:1px solid var(--line)}
+@media (max-width:420px){.two{grid-template-columns:1fr}.two .field:nth-child(odd){border-right:0}}
+
+.band{background:var(--band);color:var(--navy);font:700 13px var(--display);text-transform:uppercase;letter-spacing:.05em;padding:8px 14px}
+.chk{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line)}
+.chk:last-child{border-bottom:0}
+.chk .t{font-weight:600;min-width:0}
+.chk .l{font-size:13px;color:var(--muted);margin-top:2px}
+.tog{display:flex;gap:6px}
+.tog button{min-width:64px;height:44px;border-radius:8px;border:1.5px solid var(--line);background:transparent;color:var(--muted);font:700 14px var(--display);letter-spacing:.03em}
+.tog button.ok.on{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.tog button.bad.on{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.chk.isbad{background:color-mix(in srgb,var(--bad-bg) 45%,transparent)}
+.chk .note{grid-column:1/-1;display:none}
+.chk.isbad .note{display:block}
+.chk .note input{width:100%;font:15px var(--body);color:var(--fg);background:var(--card);border:1px solid var(--bad);border-radius:8px;padding:8px 10px}
+.tally{display:flex;gap:8px;margin-top:6px;font-size:13px;color:var(--muted)}
+.tally b{color:var(--fg)}
+
+.defect{padding:12px 14px;border-bottom:1px solid var(--line);display:grid;gap:8px}
+.defect:last-child{border-bottom:0}
+.defect .hd{display:flex;justify-content:space-between;align-items:center;font-weight:700}
+.defect .hd span{color:var(--bad)}
+.defect input,.defect textarea{width:100%;font:15px var(--body);color:var(--fg);background:transparent;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.defect .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.photos{display:flex;flex-wrap:wrap;gap:6px}
+.photos img{width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.addphoto{display:inline-flex;align-items:center;justify-content:center;width:72px;height:72px;border:1.5px dashed var(--line);border-radius:6px;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer}
+.addphoto input{display:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:0 18px;border-radius:10px;border:1.5px solid var(--navy);background:var(--navy);color:#fff;font:700 16px var(--display);letter-spacing:.03em;text-transform:uppercase;cursor:pointer;width:100%}
+.btn.ghost{background:transparent;color:var(--navy)}
+.btn.sm{min-height:40px;font-size:14px;width:auto;padding:0 14px}
+.btn.danger{border-color:var(--bad);color:var(--bad);background:transparent}
+.actions{display:grid;gap:10px;margin-top:20px}
+.result{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.result button{min-height:56px;border-radius:10px;border:1.5px solid var(--line);background:transparent;color:var(--muted);font:700 14px var(--display);text-transform:uppercase}
+.result button.on.pass{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
+.result button.on.rep{background:var(--warn-bg);border-color:var(--warn);color:var(--warn)}
+.result button.on.fail{background:var(--bad-bg);border-color:var(--bad);color:var(--bad)}
+.hint{font-size:13px;color:var(--muted);margin:6px 2px}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-weight:600;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+
+/* assets view */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;display:grid;gap:4px;border-left:5px solid var(--line);min-height:96px}
+.tile.pass{border-left-color:var(--ok)} .tile.fail{border-left-color:var(--bad)} .tile.rep{border-left-color:var(--warn)} .tile.open{border-left-color:var(--navy)}
+.tile .s{font:700 20px/1.1 var(--display);letter-spacing:.02em}
+.tile .t{font-size:14px;color:var(--muted)}
+.tile .st{display:flex;justify-content:space-between;align-items:center;margin-top:4px;font-size:12px;color:var(--muted)}
+.progress{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;padding:10px 0}
+.progress div b{display:block;font:700 24px/1 var(--display)}
+.progress div{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.progress .p b{color:var(--ok)} .progress .f b{color:var(--bad)} .progress .o b{color:var(--navy)}
+.assethead{background:var(--navy);color:#fff;border-radius:12px;padding:12px 16px;display:grid;grid-template-columns:1fr 1fr;gap:4px 16px}
+.assethead .big{grid-column:1/-1;font:700 26px/1.1 var(--display);letter-spacing:.02em}
+.assethead div{font-size:14px;opacity:.9}
+.assethead div small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;opacity:.7}
+.admin{margin-top:28px}
+.admin summary{font-size:13px;color:var(--muted);cursor:pointer;text-transform:uppercase;letter-spacing:.05em;font-weight:600}
+/* list view */
+.item{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 14px;border-bottom:1px solid var(--line);cursor:pointer}
+.item:last-child{border-bottom:0}
+.pill{font:700 12px var(--display);letter-spacing:.04em;text-transform:uppercase;padding:4px 8px;border-radius:999px;border:1px solid}
+.pill.pass{color:var(--ok);border-color:var(--ok);background:var(--ok-bg)}
+.pill.rep{color:var(--warn);border-color:var(--warn);background:var(--warn-bg)}
+.pill.fail{color:var(--bad);border-color:var(--bad);background:var(--bad-bg)}
+.pill.open{color:var(--muted);border-color:var(--line)}
+.item .n{font-weight:700}
+.item .m{font-size:13px;color:var(--muted)}
+.empty{padding:28px 14px;text-align:center;color:var(--muted)}
+.confirm{display:none;gap:8px;grid-template-columns:1fr 1fr}
+.confirm.show{display:grid}
+.topbar2{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.topbar2 .btn{width:auto;flex:1}
+
+/* report (self-hosted print) */
+@media print{
+  .top,.actions,.topbar2,.toast,#listView{display:none!important}
+  body{background:#fff;color:#000}
+  .card{break-inside:avoid;border-color:#999}
+  .chk .tog button{display:none}
+  .chk .tog::after{content:attr(data-state);font-weight:700}
+}
+</style>
+
+<div class="top">
+  <span class="logo"><img src="data:image/jpeg;base64,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" alt="Franmarine"></span>
+  <h1 id="title">Gangway Inspect<span class="sub">Franmarine Underwater Services</span></h1>
+  <span id="cloud" data-state="off" aria-label="Sync status"></span>
+  <button id="navBtn">Saved</button>
+</div>
+
+<main>
+<!-- ============ ASSETS VIEW ============ -->
+<section id="listView" class="view" hidden>
+  <div class="progress card" id="progress"></div>
+  <h2>Assets - Table 1 (tap one to inspect)</h2>
+  <div class="grid" id="list"></div>
+  <details class="admin">
+    <summary>Office tools</summary>
+    <div class="card" id="officeList" style="margin-top:10px"></div>
+    <div class="topbar2">
+      <button class="btn ghost" id="exportBtn">Export JSON</button>
+      <label class="btn ghost" style="cursor:pointer">Import JSON<input type="file" id="importFile" accept="application/json" hidden></label>
+    </div>
+    <p class="hint">Inspections sync to the shared job list automatically. Export JSON for the office to build the client reports.</p>
+  </details>
+</section>
+
+<!-- ============ FORM VIEW ============ -->
+<section id="formView" class="view">
+  <div class="assethead" id="assethead"></div>
+  <h2>Job</h2>
+  <div class="card two">
+    <div class="field"><label for="f_job">Job No</label><input id="f_job" placeholder="FD303"></div>
+    <div class="field"><label for="f_date">Date</label><input id="f_date" type="date"></div>
+    <div class="field"><label for="f_site">Site</label><input id="f_site" placeholder="Fleet Base East, Garden Island"></div>
+    <div class="field"><label for="f_insp">Inspector</label><input id="f_insp"></div>
+    <div class="field"><label for="f_weld">Welding ticket No</label><input id="f_weld"></div>
+    <div class="field"><label for="f_serial">Serial found on the asset</label><input id="f_serial" placeholder="Type what the plate says"></div>
+    <div class="field"><label for="f_match">Serial matches Table 1?</label>
+      <select id="f_match"><option value="">Select</option><option>Yes</option><option>No - write in defects</option><option>Not found on asset</option></select></div>
+    <div class="field"><label for="f_name">Asset name (if different)</label><input id="f_name"></div>
+    <div class="field"><label for="f_lastload">Date of last load test</label><input id="f_lastload" type="date"></div>
+    <div class="field"><label for="f_wll">Working load limit (kg)</label><input id="f_wll" inputmode="numeric"></div>
+    <div class="field"><label for="f_tare">Tare weight (kg)</label><input id="f_tare" inputmode="numeric"></div>
+  </div>
+
+  <div id="checks"></div>
+
+  <h2>Defects <span id="defCount" style="color:var(--bad)"></span></h2>
+  <div class="card" id="defects"><div class="empty" id="defEmpty">No defects yet. Anything marked NOT OK lands here.</div></div>
+  <div style="margin-top:8px"><button class="btn ghost sm" id="addDef">+ Add defect manually</button></div>
+  <p class="hint">Photos: one or more for every defect. Nothing else needs photographing.</p>
+
+  <h2>Result</h2>
+  <div class="result" id="result">
+    <button class="pass" data-v="SERVICEABLE">Serviceable</button>
+    <button class="rep" data-v="SERVICEABLE after repairs">Serviceable after repairs</button>
+    <button class="fail" data-v="UNSERVICEABLE">Unserviceable - tag out</button>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <div class="field"><label for="f_next">Next inspection due</label><input id="f_next" type="date"></div>
+    <div class="field"><label for="f_comments">Comments</label><textarea id="f_comments"></textarea></div>
+  </div>
+
+  <div class="actions">
+    <button class="btn" id="saveBtn">Save inspection</button>
+    <button class="btn danger" id="delBtn">Delete this inspection</button>
+    <div class="confirm" id="delConfirm">
+      <button class="btn danger" id="delYes">Yes, delete</button>
+      <button class="btn ghost" id="delNo">Keep it</button>
+    </div>
+  </div>
+</section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
+<script>
+// =====================================================================
+//  SETUP - paste your Supabase project URL and anon key here.
+//  Leave both blank and the app runs on-device only (export/import JSON).
+// =====================================================================
+const CONFIG = {
+  JOB: "FD303",
+  SUPABASE_URL: "https://gfyhattiagyhrpojexxp.supabase.co",
+  SUPABASE_KEY: "sb_publishable_K7I3Vhf4zplRKpb9bH1bjQ_60hTowA9",
+};
+
+// ---------- Checklist definition (from spec clauses 2.7.1 - 2.7.4) ----------
+const SECTIONS = [
+  { title:"Before you start", items:[
+    ["Gangway cleaned enough to inspect","Only clean what you need to see the metal, welds and plates - this is NOT a full wash-down. Don't lift the deck tread with the pressure washer"],
+  ]},
+  { title:"Structure - every weld, lifting lug, fastener and member", items:[
+    ["Fracture","None allowed anywhere"],
+    ["Pitting","None on stanchions, stringers, lifting lugs. Elsewhere max 10% of thickness"],
+    ["Deformation","None on stanchions, handrails, stringers, lifting lugs. Elsewhere max 10% of thickness"],
+    ["Corrosion","None allowed - cold gal or refinish"],
+    ["Wear","None on stanchions, stringers, lifting lugs. Elsewhere max 10% of thickness"],
+    ["Abrasion","None on stanchions, stringers, lifting lugs. Elsewhere max 10% of thickness"],
+    ["Mechanical or impact damage","None on stanchions, stringers, lifting lugs. Elsewhere max 10% of thickness"],
+  ]},
+  { title:"Skid plates, deck and tread boards", items:[
+    ["Significant wear","Skid plates max 30% of thickness. No rot, splits or impact damage"],
+    ["Deformation","None allowed"],
+    ["Loss of non-slip coatings","Max 2 worn patches per m2 bigger than 50 mm"],
+    ["Loose boards or fasteners","None allowed"],
+  ]},
+  { title:"Axles, wheels, rollers, casters and tyres", items:[
+    ["Binding","Every wheel spins freely"],
+    ["Damage or wear","No flat spots, no cord showing, no sidewall damage, tyres at rated pressure, no pitting, hardware tight"],
+    ["Bearing wear","No play or roughness"],
+    ["Gasket damage or wear","None allowed"],
+  ]},
+  { title:"Wires, mesh and netting", items:[
+    ["Damage or fraying","None allowed"],
+    ["Environmental deterioration","None allowed"],
+  ]},
+  { title:"Protective coatings and warnings", items:[
+    ["Environmental deterioration","Max 5% of each part rusted, incl. axles and wheels"],
+    ["Chipping","Touch up as required"],
+    ["Delamination","None allowed"],
+    ["Warning labels","Present and readable"],
+  ]},
+  { title:"OEM and load test tally plates", items:[
+    ["Presence","OEM plate, lifting lug test plate and load test plate all fitted. Missing = make and fit new"],
+    ["Secure fixation","All plates fixed firmly"],
+    ["Currency","Load test and lifting lug retest dates not expired (5 yrs). Serial matches Table 1"],
+    ["Legibility","All details readable and correct"],
+    ["Annual inspection tally plate installed IAW SOW","NEW plate fitted: Franmarine, serial, date, job No, next inspection 1 yr. Old plate removed"],
+  ]},
+];
+
+// ---------- Asset register (Table 1) ----------
+const ASSETS = [
+  ["PE007-03","NIC","Platform","N/A","GA Glanville & Co"],
+  ["PE009-03","NIC","Platform","N/A","GA Glanville & Co"],
+  ["PE007","66-165-9791","Gangway, Straight Hydraulic","7","GA Glanville & Co"],
+  ["PE009","66-165-9791","Gangway, Straight Hydraulic","7","GA Glanville & Co"],
+  ["PE007-02","NIC","Wharf Ramp","N/A","GA Glanville & Co"],
+  ["PE009-02","NIC","Wharf Ramp","N/A","GA Glanville & Co"],
+  ["01092014","66-152-5558","Gangway, Straight","4.1","British Star Engineering"],
+  ["02032005","66-152-5558","Gangway, Straight","4.1","British Star Engineering"],
+  ["01032005","66-152-5558","Gangway, Straight","4.1","British Star Engineering"],
+  ["02092014","66-152-5558","Gangway, Straight","4.1","British Star Engineering"],
+  ["04032005","66-152-5558","Gangway, Straight","4.1","British Star Engineering"],
+  ["02052000","66-152-5557","Gangway, Straight","5.8","British Star Engineering"],
+  ["03052000","66-152-5557","Gangway, Straight","5.8","British Star Engineering"],
+  ["03092014","66-152-5557","Gangway, Straight","5.8","British Star Engineering"],
+  ["01072022","66-152-5558","Gangway, Straight","4.1","British Star Engineering"],
+  ["02072022","66-152-5558","Gangway, Straight","4.1","British Star Engineering"],
+  ["03072022","66-152-5557","Gangway, Straight","5.8","British Star Engineering"],
+  ["20072016","NIC","Gangway, Straight","4.3","Unknown"],
+  ["T-1499","NIC","Gangway, Straight","2.45","Unknown"],
+  ["01052025","66-152-5557","Gangway, Straight","5.8","British Star Engineering"],
+  ["02052025","66-152-5557","Gangway, Straight","5.8","British Star Engineering"],
+  ["01032025","66-152-5558","Gangway, Straight","4.1","British Star Engineering"],
+  ["02032025","66-152-5558","Gangway, Straight","4.1","British Star Engineering"],
+].map(a=>({serial:a[0],nsn:a[1],type:a[2],length:a[3],oem:a[4]}));
+const assetBy = (s)=>ASSETS.find(a=>a.serial===s);
+
+// ---------- Storage: local always, Supabase cloud when configured ----------
+const KEY = "fus.gangway.inspections.v1";
+const store = {
+  load(){ try{ return JSON.parse(localStorage.getItem(KEY)||"[]"); }catch(e){ return []; } },
+  save(list){ try{ localStorage.setItem(KEY, JSON.stringify(list)); }catch(e){ toast("Could not save on this device"); } },
+};
+let records = store.load();
+
+const cloud = {
+  sb: null, on: false,
+  init(){
+    if(!CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_KEY || !window.supabase) return;
+    try{ this.sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_KEY); this.on = true; }catch(e){ this.on=false; }
+  },
+  async pull(){
+    if(!this.on) return;
+    const {data,error} = await this.sb.from("inspections").select("id,data,updated").eq("job",CONFIG.JOB);
+    if(error){ setCloud("offline"); return; }
+    let changed=0;
+    (data||[]).forEach(row=>{ const r=row.data; const i=records.findIndex(x=>x.id===r.id);
+      if(i<0){ records.push(r); changed++; } else if((r.updated||0)>(records[i].updated||0)){ records[i]=r; changed++; } });
+    if(changed){ records.sort((a,b)=>(b.created||0)-(a.created||0)); store.save(records); if(!$("#listView").hidden) showList(); }
+    setCloud("ok");
+  },
+  async push(r){
+    if(!this.on) return;
+    // upload any photos still held as data URLs, swap for storage URLs
+    for(const d of r.defects){ for(let i=0;i<d.photos.length;i++){ const p=d.photos[i]; if(!p.startsWith("data:")) continue;
+      try{ const blob=await (await fetch(p)).blob(); const path=`${CONFIG.JOB}/${r.asset}/${r.id}-${uid()}.jpg`;
+        const up=await this.sb.storage.from("photos").upload(path, blob, {contentType:"image/jpeg", upsert:true});
+        if(!up.error){ d.photos[i]=this.sb.storage.from("photos").getPublicUrl(path).data.publicUrl; } }catch(e){} } }
+    const {error} = await this.sb.from("inspections").upsert({ id:r.id, job:CONFIG.JOB, asset:r.asset, result:r.result||"", updated:r.updated||Date.now(), data:r });
+    if(error){ setCloud("offline"); toast("Saved on device - cloud sync failed, will retry"); r._dirty=true; } else { r._dirty=false; setCloud("ok"); }
+    store.save(records);
+  },
+  async remove(id){ if(!this.on) return; try{ await this.sb.from("inspections").delete().eq("id",id); }catch(e){} },
+  async retry(){ if(!this.on) return; for(const r of records.filter(x=>x._dirty)) await this.push(r); },
+};
+function setCloud(state){ const el=$("#cloud"); if(!el) return; el.dataset.state=state; el.title = state==="ok"?"Synced":state==="offline"?"Offline - will sync when back":"Not configured"; }
+let cur = null;          // current record being edited
+const $ = (s)=>document.querySelector(s);
+const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const todayISO = ()=>{ const d=new Date(); return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+const plusYear = (iso)=>{ if(!iso) return ""; const d=new Date(iso); d.setFullYear(d.getFullYear()+1); return d.toISOString().slice(0,10); };
+
+function blank(asset){
+  const checks = {};
+  SECTIONS.forEach((s,si)=>s.items.forEach((it,ii)=>{ checks[si+"."+ii] = {state:"", note:"", rec:""}; }));
+  const last = records.find(r=>r.job||r.site||r.insp) || {};
+  return { id:uid(), created:Date.now(), asset:asset.serial, job:last.job||"FD303", date:todayISO(), site:last.site||"Fleet Base East, Garden Island", insp:last.insp||"", name:"", serial:"", weld:last.weld||"", match:"", lastload:"", wll:"", tare:"",
+    checks, defects:[], result:"", next:plusYear(todayISO()), comments:"" };
+}
+function latestFor(serial){ return records.filter(r=>r.asset===serial).sort((a,b)=>(b.created||0)-(a.created||0))[0]; }
+function renderAssetHead(){
+  const a = assetBy(cur.asset) || {serial:cur.asset||"-",nsn:"-",type:"-",length:"-",oem:"-"};
+  $("#assethead").innerHTML = `<div class="big">${esc(a.serial)}</div>
+    <div><small>Type</small>${esc(a.type)}</div><div><small>Length (m)</small>${esc(a.length)}</div>
+    <div><small>NSN</small>${esc(a.nsn)}</div><div><small>Manufacturer</small>${esc(a.oem)}</div>`;
+}
+
+// ---------- Build checklist DOM ----------
+function buildChecks(){
+  const host = $("#checks"); host.innerHTML = "";
+  SECTIONS.forEach((s,si)=>{
+    const h = document.createElement("h2"); h.textContent = s.title; host.appendChild(h);
+    const card = document.createElement("div"); card.className="card";
+    s.items.forEach((it,ii)=>{
+      const k = si+"."+ii;
+      const row = document.createElement("div"); row.className="chk"; row.dataset.k=k;
+      row.innerHTML = `<div><div class="t">${it[0]}</div>${it[1]?`<div class="l">${it[1]}</div>`:""}</div>
+        <div class="tog"><button type="button" class="ok">OK</button><button type="button" class="bad">NOT OK</button></div>
+        <div class="note"><input placeholder="Damage observed - what, where, size / depth" aria-label="Damage observed"><input class="rec" placeholder="Recommendation (e.g. repair, replace, monitor)" aria-label="Recommendation" style="margin-top:6px"></div>`;
+      row.querySelector(".ok").onclick = ()=>setState(k,"ok");
+      row.querySelector(".bad").onclick = ()=>setState(k,"bad");
+      row.querySelector(".note input").oninput = (e)=>{ cur.checks[k].note = e.target.value; syncDefectFromCheck(k); };
+      row.querySelector(".note .rec").oninput = (e)=>{ cur.checks[k].rec = e.target.value; };
+      card.appendChild(row);
+    });
+    host.appendChild(card);
+  });
+}
+function labelFor(k){ const [si,ii]=k.split(".").map(Number); return SECTIONS[si].title+" - "+SECTIONS[si].items[ii][0]; }
+function setState(k, st){
+  cur.checks[k].state = (cur.checks[k].state===st) ? "" : st;
+  renderCheck(k); syncDefectFromCheck(k); updateTally();
+}
+function renderCheck(k){
+  const row = document.querySelector(`.chk[data-k="${k}"]`); const c = cur.checks[k];
+  row.querySelector(".ok").classList.toggle("on", c.state==="ok");
+  row.querySelector(".bad").classList.toggle("on", c.state==="bad");
+  row.classList.toggle("isbad", c.state==="bad");
+  row.querySelector(".note input").value = c.note||"";
+  row.querySelector(".note .rec").value = c.rec||"";
+  row.querySelector(".tog").dataset.state = c.state==="ok"?"OK":c.state==="bad"?"NOT OK":"-";
+}
+function syncDefectFromCheck(k){
+  let d = cur.defects.find(x=>x.from===k);
+  if (cur.checks[k].state==="bad"){
+    if(!d){ d={id:uid(),from:k,where:labelFor(k),what:"",photos:[],fixed:false}; cur.defects.push(d); }
+    d.what = cur.checks[k].note||d.what;
+  } else if (d && !d.photos.length && (d.what===cur.checks[k].note || !d.what)) {
+    cur.defects = cur.defects.filter(x=>x!==d);
+  }
+  renderDefects();
+}
+function updateTally(){
+  const vals = Object.values(cur.checks);
+  const bad = vals.filter(c=>c.state==="bad").length, done = vals.filter(c=>c.state).length;
+  $("#defCount").textContent = bad?`(${bad})`:"";
+  $("#navBtn").textContent = `Saved (${records.length})`;
+  document.title = "Gangway Inspect";
+  return {bad, done, total: vals.length};
+}
+
+// ---------- Defects ----------
+function renderDefects(){
+  const host=$("#defects"); host.innerHTML="";
+  if(!cur.defects.length){ host.innerHTML=`<div class="empty">No defects yet. Anything marked NOT OK lands here.</div>`; updateTally(); return; }
+  cur.defects.forEach((d,i)=>{
+    const el=document.createElement("div"); el.className="defect";
+    el.innerHTML=`<div class="hd"><span>Defect ${i+1}</span><button type="button" class="btn ghost sm" data-rm>Remove</button></div>
+      <input placeholder="Where on the gangway" value="${esc(d.where)}" data-f="where">
+      <textarea placeholder="What is wrong - size, depth, measurement vs limit" data-f="what">${esc(d.what)}</textarea>
+      <div class="row">
+        <label style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" style="width:22px;height:22px" ${d.fixed?"checked":""} data-f="fixed"> Fixed on site</label>
+      </div>
+      <div class="photos">${d.photos.map(p=>`<img src="${p}" alt="Defect photo">`).join("")}
+        <label class="addphoto">+ Photo<input type="file" accept="image/*" capture="environment" multiple></label></div>`;
+    el.querySelector("[data-rm]").onclick=()=>{ cur.defects.splice(i,1); if(d.from&&cur.checks[d.from]) {cur.checks[d.from].state="";cur.checks[d.from].note="";renderCheck(d.from);} renderDefects(); updateTally(); };
+    el.querySelector('[data-f="where"]').oninput=e=>d.where=e.target.value;
+    el.querySelector('[data-f="what"]').oninput=e=>{ d.what=e.target.value; if(d.from&&cur.checks[d.from]){cur.checks[d.from].note=e.target.value; document.querySelector(`.chk[data-k="${d.from}"] .note input`).value=e.target.value;} };
+    el.querySelector('[data-f="fixed"]').onchange=e=>d.fixed=e.target.checked;
+    el.querySelector('input[type=file]').onchange=async e=>{ for(const f of e.target.files){ d.photos.push(await shrink(f)); } renderDefects(); };
+    host.appendChild(el);
+  });
+  updateTally();
+}
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function shrink(file){ return new Promise(res=>{ const img=new Image(); const url=URL.createObjectURL(file);
+  img.onload=()=>{ const max=1024; let w=img.width,h=img.height; const r=Math.min(1,max/Math.max(w,h)); w=Math.round(w*r); h=Math.round(h*r);
+    const c=document.createElement("canvas"); c.width=w; c.height=h; c.getContext("2d").drawImage(img,0,0,w,h); URL.revokeObjectURL(url); res(c.toDataURL("image/jpeg",.7)); };
+  img.onerror=()=>res(""); img.src=url; }); }
+$("#addDef").onclick=()=>{ cur.defects.push({id:uid(),from:"",where:"",what:"",photos:[],fixed:false}); renderDefects(); };
+
+// ---------- Form <-> record ----------
+const F = ["job","date","site","insp","name","serial","weld","match","next","comments","lastload","wll","tare"];
+function loadForm(r){
+  cur = r;
+  F.forEach(f=>{ $("#f_"+f).value = r[f]||""; });
+  renderAssetHead();
+  Object.keys(cur.checks).forEach(renderCheck);
+  renderResult(); renderDefects(); updateTally();
+  window.scrollTo(0,0);
+}
+F.forEach(f=>{ $("#f_"+f).addEventListener("input",e=>{ cur[f]=e.target.value; if(f==="date"){ cur.next=plusYear(cur.date); $("#f_next").value=cur.next; } }); });
+$("#f_match").addEventListener("change",e=>cur.match=e.target.value);
+function renderResult(){ document.querySelectorAll("#result button").forEach(b=>b.classList.toggle("on", b.dataset.v===cur.result)); }
+document.querySelectorAll("#result button").forEach(b=>b.onclick=()=>{ cur.result = cur.result===b.dataset.v?"":b.dataset.v; renderResult(); });
+
+// ---------- Save / list ----------
+function save(silent){
+  const t=updateTally();
+  if(!cur.asset){ toast("Pick an asset first"); return false; }
+  const i=records.findIndex(r=>r.id===cur.id); cur.updated=Date.now();
+  if(i>=0) records[i]=cur; else records.unshift(cur);
+  store.save(records);
+  if(!silent) toast(t.done<t.total ? `Saved - ${t.total-t.done} checks still blank` : "Saved");
+  updateTally(); cloud.push(cur); return true;
+}
+$("#saveBtn").onclick=()=>{ if(save()) setTimeout(showList, 600); };
+$("#delBtn").onclick=()=>$("#delConfirm").classList.add("show");
+$("#delNo").onclick=()=>$("#delConfirm").classList.remove("show");
+$("#delYes").onclick=()=>{ cloud.remove(cur.id); records=records.filter(r=>r.id!==cur.id); store.save(records); $("#delConfirm").classList.remove("show"); showList(); toast("Deleted"); };
+
+function statusOf(r){ if(!r) return "none"; return r.result==="SERVICEABLE"?"pass":r.result==="UNSERVICEABLE"?"fail":r.result?"rep":"open"; }
+function showList(){
+  $("#formView").hidden=true; $("#listView").hidden=false; $("#navBtn").textContent="Refresh";
+  const host=$("#list"); host.innerHTML="";
+  const counts={pass:0,rep:0,fail:0,open:0,none:0};
+  ASSETS.forEach(a=>{
+    const r=latestFor(a.serial); const st=statusOf(r); counts[st]++;
+    const bad=r?Object.values(r.checks).filter(c=>c.state==="bad").length:0;
+    const done=r?Object.values(r.checks).filter(c=>c.state).length:0, total=Object.keys(r?r.checks:{}).length||1;
+    const el=document.createElement("div"); el.className="tile "+st;
+    el.innerHTML=`<div class="s">${esc(a.serial)}</div><div class="t">${esc(a.type)}${a.length!=="N/A"?" · "+esc(a.length)+" m":""}</div>
+      <div class="st"><span>${r?(r.result||`In progress ${done}/${total}`):"Not started"}</span><span>${bad?`<b style="color:var(--bad)">${bad} not OK</b>`:""}</span></div>`;
+    el.onclick=()=>{ loadForm(r||blank(a)); showForm(); };
+    host.appendChild(el);
+  });
+  const ol=$("#officeList"); ol.innerHTML="";
+  const saved=ASSETS.map(a=>latestFor(a.serial)).filter(Boolean);
+  if(!saved.length) ol.innerHTML=`<div class="empty">No inspections saved yet.</div>`;
+  saved.forEach(r=>{ const el=document.createElement("div"); el.className="item"; el.style.cursor="default";
+    el.innerHTML=`<span class="pill ${statusOf(r)}">${r.result||"Open"}</span><div><div class="n">${esc(r.asset)}</div><div class="m">${r.date||""} · ${esc(r.insp||"")}</div></div><div class="m">${Object.values(r.checks).filter(c=>c.state==="bad").length} not OK</div>`;
+    ol.appendChild(el); });
+  $("#progress").innerHTML=`<div class="p"><b>${counts.pass+counts.rep}</b>Passed</div><div class="f"><b>${counts.fail}</b>Failed</div><div class="o"><b>${counts.open}</b>In progress</div><div><b>${counts.none}</b>To do</div>`;
+}
+function showForm(){ $("#listView").hidden=true; $("#formView").hidden=false; $("#navBtn").textContent="All assets"; updateTally(); }
+$("#navBtn").onclick=()=>{ if($("#listView").hidden){ if(cur && (Object.values(cur.checks).some(c=>c.state)||cur.result||cur.serial||cur.defects.length)) save(true); showList(); } else { cloud.on ? cloud.pull().then(()=>toast("Up to date")) : showList(); } };
+
+// ---------- Export / import / copy ----------
+$("#exportBtn").onclick=async()=>{
+  const json=JSON.stringify({app:"gangway-inspect",exported:new Date().toISOString(),records},null,1);
+  try{ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([json],{type:"application/json"})); a.download=`gangway-inspections-${todayISO()}.json`; a.click(); }catch(e){}
+  try{ await navigator.clipboard.writeText(json); toast("JSON downloaded and copied"); }catch(e){ toast("JSON download started"); }
+};
+$("#importFile").onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=()=>{ try{ const d=JSON.parse(rd.result); const inc=Array.isArray(d)?d:d.records||[]; let n=0;
+  inc.forEach(r=>{ const i=records.findIndex(x=>x.id===r.id); if(i<0){records.push(r);n++;} else if((r.updated||0)>(records[i].updated||0)){records[i]=r;n++;} });
+  records.sort((a,b)=>(b.created||0)-(a.created||0)); store.save(records); showList(); toast(`Imported ${n} inspection${n===1?"":"s"}`); }catch(err){ toast("That file is not a Gangway Inspect export"); } }; rd.readAsText(f); e.target.value=""; };
+
+
+
+let tt; function toast(m){ const t=$("#toast"); t.textContent=m; t.classList.add("show"); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove("show"),2200); }
+
+// ---------- Boot ----------
+buildChecks();
+showList();
+cloud.init(); setCloud(cloud.on?"offline":"off");
+if(cloud.on){ cloud.pull().then(()=>cloud.retry()); setInterval(()=>cloud.pull(), 30000); window.addEventListener("online",()=>{ cloud.retry(); cloud.pull(); }); }
+</script>
